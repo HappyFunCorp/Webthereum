@@ -1,0 +1,114 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1561\cocoasubrtf400
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red255\green255\blue255;\red16\green60\blue192;
+}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;\cssrgb\c100000\c100000\c100000;\cssrgb\c6667\c33333\c80000;
+}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\sl280\qc\partightenfactor0
+
+\f0\b\fs24 \cf2 \cb3 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Solidity Security Considerations
+\b0 \
+\pard\pardeftab720\sl280\partightenfactor0
+\cf2 \
+Smart contracts running on a public blockchain such as Ethereum are irrevocable, in that you cannot modify a contract which has been deployed\'b9, and permissionless, in that anyone can call the externally-accessible methods on that contract with arbitrary data an arbitrary number of times. This is a major reason why fairly simple bugs in Solidity, the de facto standard language for Ethereum smart contract development, have cost enormous amounts of money in multiple high-profile (and numerous low-profile) cases.\
+\
+Complicating matters further is the in-flux nature of Solidity and Ethereum development. The blockchain itself, the language, and all of the associated tooling, are in a state of rapid flux, and none of it can be considered anything more stable than beta-release software. (Much of it is alpha, if that.)\
+\
+While there are patterns which can be used to mitigate the risks of a flawed contract, in general the security risks of irrevocable smart contracts have more in common with hardware design than with traditional software development. As a result, smart contract code should be kept maximally simple; should reuse battle-tested existing libraries wherever possible; and should be thoroughly tested and externally (and possibly repeatedly) audited.\
+\
+What follows is a summary of various security considerations when writing Solidity smart contracts. It is not intended as an exhaustive, detailed list, but as an overview of key concepts to be kept in mind.\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf2 \cb1 \uc0\u8232 \cb3 \
+\pard\pardeftab720\sl280\partightenfactor0
+
+\b \cf2 Code quality
+\b0 \
+\
+In general Solidity code should be short, simple and elegant. It should be pragma-locked to a single version of the language; should make minimal use of multiple inheritance; should avoid using tx.origin; should prefer newer and safer constructs such as "keccak256" rather than "sha3"; should make very cautious assumptions, if any, about timestamp precision\'b2; favor pull payments over push payments; favor the checks-effects-interactions pattern; etc.\
+\
+Safety patterns such as "speed bumps" (delays before functionality is made available) and "rate limits" (only N ether can be deducted from an account every M hours) can be helpful in identifying and mitigating flaws before they become catastrophic. Code should not be deployed without copious unit and integration testing, ideally in both Solidity and Javascript if there is a production JS interface. Various static-analysis tools are available (cf\'a0{\field{\*\fldinst{HYPERLINK "https://consensys.github.io/smart-contract-best-practices/security_tools/"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 https://consensys.github.io/smart-contract-best-practices/security_tools/}}) and should be used.\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf2 \cb1 \uc0\u8232 \cb3 \
+\pard\pardeftab720\sl280\partightenfactor0
+
+\b \cf2 Known attacks
+\b0 \
+\
+\pard\pardeftab720\sl280\partightenfactor0
+
+\i \cf2 Overlfows and underflows:
+\i0 \'a0It may seem surprising that something as basic as addition and subtraction can be problematic, but both overflows and underflows are possible for simple unsigned integers in Solidity. Conceivably a caller with 10 tokens could spend 11 and subsequently wind up with 2^256-1 tokens in their balance, courtesy of an underflow error. Balance manipulations -- and, indeed, mathematics in general -- should always be performed using safetied methods. (See also "Library re-use" below.)\
+\
+
+\i Visibility
+\i0 : while Solidity has a "private" keyword, that refers to scope, not actual privacy. Everything in a smart contract is stored on a public blockchain and thus is ultimately publicly visible, including so-called "private" variables. (This may change in the future courtesy of zkSNARKs, but not the foreseeable future.) That said, visibility modifiers do affect who can call\'a0
+\i functions
+\i0 \'a0with those modifiers; it's important that methods which change state not be "external" or "public" -- which is the default, in the absence of any specification -- unless that is deliberate and carefully considered.\
+\
+
+\i Re-entrancy
+\i0 : The cause of the infamous DAO bug. Any interaction, including Ether transfer, between two contracts hands control over to the callee / recipient, who can then execute their own code. This could be used, for instance, to re-trigger the transfer on the caller -- and if the balance has not yet been updated at this point, then they can withdraw their balance an arbitrary number of times before it is zeroed out. There are other, subtler re-entrancy bugs, too, such as the triggering of fallback functions by Ether transfers. These are generally exacerbated when "call," which passes all the available gas, is used rather than "send," which is more limited.\
+\
+
+\i Delegate calls
+\i0 : allow existing contracts to be used as libraries of functions, but allows attackers to call arbitrary methods on those libraries, as occurred with the infamous Parity bug. This can be used to e.g. change variables that point to transfer recipients in an obfuscated manner.\
+\
+
+\i Low-level implementation weaknesses
+\i0 : these include the Golem "short address attack" and potential attacks based on the way that method names are hashed into the Application Binary Interface. Systems which generate raw Ethereum transactions, such as our own Webthereum tutorial\'b3, may need to validate user-generated inputs which are assembled into those transactions. Malicious or opportunistic use of transaction orders within or between blocks can result in a "front-running" attack.\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf2 \cb1 \uc0\u8232 \cb3 \
+\pard\pardeftab720\sl280\partightenfactor0
+
+\b \cf2 Library re-use, testnets, incident planning
+\b0 \
+\
+There are now numerous libraries of well-written, well-documented, time-tested open-source Solidity code which new projects can and should use. Consensys and OpenZeppelin are the two most notable. They provide e.g. SafeMath, to avoid overflow errors; complete implementations of various flavors of ERC20 and ERC721 tokens; boilerplate crowdsale code; etcetera. Their use is strongly recommended.\
+\
+Obviously all smart contracts should be thoroughly tested on both internal and public testnets before deployment to mainnet.\
+\
+Formal risk assessments (brainstorming the likelihood and severity of all the bad things that could happen) and incident planning (specifying in advance how to respond if a bad thing seems to be happening) are strongly advised for high-value contracts.\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf2 \cb1 \uc0\u8232 \cb3 \
+\pard\pardeftab720\sl280\partightenfactor0
+
+\b \cf2 Upgrade flexibility
+\b0 \
+\
+While Solidity contracts cannot be modified in place, they can be structured as a set of mostly-upgradeable modules. A simple "master contract" can include a pointer to a "detail contract" which handles a particular kind of work; then, when the time comes to update the detail contract, you need only deploy the new version of it, then update the master contract's pointer from the old version to the new one. This pattern provides substantially greater flexibility and recourse then a fully irrevocable contract does.\
+\
+When using multiple contracts, changes in data structures can lead to corrupted data. It's generally best, in such situations, to have a single contract which contains the system's data; this encapsulates the problem and, in principle at least, allows for the data as well as the code to be upgraded.\
+\
+This can also be a source of some community difficulty, in that presumably only the owner of the "master contract" can update the "detail contracts" (and see below), which centralizes control in the hands of whoever deployed the contract. This can seem opposed to the general ethos of decentralized, permissionless systems -- if the contract owner can change it at any time, then how is it different from software running on a server that they control?\
+\
+Sometimes this upgrade flexibility is acceptable to the community using the smart contract(s) in question. A compromise is to provide an "upgrade kill switch" -- a method which, when called, will prevent any upgrades in future, along with either a timer activator (so that kill switch will automatically be flipped or a certain point in the future) or a simple promise that, when the suite of contracts is deemed battle-hardened and ready, the switch will be flipped.\
+\
+It's also possible to only permit upgrades if they are approved M-of-N users (see below), or a majority / supermajority of the community. Note however that this implies added complexity, which implies a greater attack surface on the contract in question; it's entirely possible for complex attempts to improve smart-contract security to be spectacularly counterproductive.\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf2 \cb1 \uc0\u8232 \cb3 \
+\pard\pardeftab720\sl280\partightenfactor0
+
+\b \cf2 Administrative authentication
+\b0 \
+\
+An extremely common pattern is for smart contracts to be "owned," and functions to be marked "onlyOwner," such that there is only a single Ethereum address with the authority to execute those functions. While this has obvious virtues, it also means that if the private key of the administrative address is lost, there is no recourse whatsoever; all control of the "owned" contract will also be lost, forever. It also means that if that single private key is compromise, so is the smart contract.\
+\
+Again there are various mitigating patterns. One is for the administrative address to be that of a multisig wallet -- a pre-existing time-tested one, again, such as that from Gnosis. (Obviously, like everything else smart-contract-security related, this is not necessarily without negative consequences; it was the Parity multisig wallet that was accidentally destroyed, stranding millions of ether indefinitely.) That way even if one signer of the multisig wallet is compromised or lost, the others have enough authority to rescue the situation.\
+\
+Another pattern, found eg in CryptoKitties, is to have a single "CEO" account with complete administrative access, which is rarely used and whose key is kept in offline cold storage, while there are a set of sub-admin accounts with their own remit -- a "CFO" account for transfers, a "COO" for contract upgrades, etc. This provides redundancy in the form of the offline / cold-storage "CEO" account if necessary, while limiting the losses if one of the "COO" or "CFO" accounts are compromised.\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf2 \cb1 \uc0\u8232 \cb3 \
+\pard\pardeftab720\sl280\partightenfactor0
+
+\b \cf2 Footnotes
+\b0 \
+\
+\'b9You may be able to delete them, in that contracts may include methods which call the the "selfdestruct" method -- but that in turn can have subtle security ramifications itself, and "selfdestruct" is generally not considered a security feature.\
+\
+\'b2Miners can cheat by about 15 minutes wrt block numbers and timestamps.\
+\
+\'b3{\field{\*\fldinst{HYPERLINK "https://happyfuncorp.com/whitepapers/webthereum"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 https://happyfuncorp.com/whitepapers/webthereum}}\
+}
