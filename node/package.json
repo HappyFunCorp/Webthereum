@@ -9,13 +9,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "ethereumjs-tx": "^1.3.3",
-    "express": "^4.16.2",
+    "ethereumjs-tx": "^1.3.7",
+    "express": "^4.16.4",
     "express-enforces-ssl": "^1.1.0",
     "fs": "0.0.1-security",
-    "helmet": "^3.9.0",
-    "pg": "^7.4.0",
-    "solc": "^0.4.19",
-    "web3": "^1.0.0-beta.27"
+    "helmet": "^3.16.0",
+    "pg": "^7.9.0",
+    "solc": "^0.4.25",
+    "web3": "^1.0.0-beta.50"
   }
 }
